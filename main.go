@@ -3,11 +3,14 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"strconv"
 
+	"github.com/fatih/color"
 	"github.com/joho/godotenv"
+	"golang.org/x/term"
 )
 
 func main() {
@@ -15,17 +18,30 @@ func main() {
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
-	api_key := os.Getenv("API_KEY")
-	if api_key == "" {
-		log.Fatal("Please set API_KEY environment variable.")
-	}
 	access_token := os.Getenv("ACCESS_TOKEN")
 	if access_token == "" {
-		email := os.Getenv("EMAIL")
-		password := os.Getenv("PASSWORD")
-		if email == "" || password == "" {
-			log.Fatal("Please set EMAIL and PASSWORDenvironment variables.")
+		println("Access Token not found.")
+		email := ""
+		password := ""
+		for email == "" {
+			print("Enter your email: ")
+			fmt.Scanln(&email)
+			if email == "" {
+				println("Email cannot be empty. Please try again.")
+			}
 		}
+		for password == "" {
+			print("Enter your password: ")
+			bytePassword, err := term.ReadPassword(int(os.Stdin.Fd()))
+			if err != nil {
+				log.Fatal("Error reading password:", err)
+			}
+			password = string(bytePassword)
+			if password == "" {
+				println("Password cannot be empty. Please try again.")
+			}
+		}
+		println("\nFetching access token...")
 		respBody, err := getToken(email, password)
 		if err != nil {
 			log.Fatal(err)
@@ -39,12 +55,35 @@ func main() {
 			log.Fatal("Access token not found in response")
 		}
 		appendEnv("ACCESS_TOKEN", accessToken)
+		println("Access token fetched successfully.")
 	}
 	godotenv.Load()
+	println("Checking configurations...")
+	api_key := os.Getenv("API_KEY")
+	print("API key: ")
+	if api_key == "" {
+		color.Red("not found")
+	} else {
+		color.Green("found")
+	}
+	print("Access token: ")
 	access_token = os.Getenv("ACCESS_TOKEN")
+	if access_token == "" {
+		color.Red("not found")
+	} else {
+		color.Green("found")
+	}
+	if api_key == "" || access_token == "" {
+		color.Red("Please check your configurations in the .env file.")
+		os.Exit(1)
+	}
+	print("Checking access to Phoning API... ")
 	_, err = phoning(api_key, access_token, "/fan/v1.0/users/me")
 	if err != nil {
-		log.Fatalf("%v", err)
+		color.Red("failed\nYou do not have access to the Phoning API. Please check your network connection, API key, and access token.")
+	} else {
+		color.Green("success")
+		println("You have access to the Phoning API.")
 	}
 	// All ready, safe to proceed
 	downloadDir := "./Downloads"
