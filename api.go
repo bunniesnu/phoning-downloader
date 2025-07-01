@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -42,6 +43,9 @@ func CallAPI(method, url string, body []byte, headers map[string]string) ([]byte
 	if err != nil {
 		return nil, err
 	}
-
+	
+	if resp.StatusCode != http.StatusOK {
+		return respBody, fmt.Errorf("API call failed with status code %d: %s", resp.StatusCode, string(respBody))
+	}
 	return respBody, nil
 }

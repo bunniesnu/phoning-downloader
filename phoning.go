@@ -37,20 +37,16 @@ func phoning(apiKey, accessToken, endpoint string, params ...map[string]string) 
 		encodeUrl += "?" + values.Encode()
 	}
 	h := hash(encodeUrl, apiKey)
-	queryUrl := "https://apis.naver.com/phoning/phoning-api/api" + endpoint + "?msgpad=" + h["msgpad"].(string) + "&md=" + url.QueryEscape(h["md"].(string))
-	if len(values) > 0 {
-		queryUrl += "&" + values.Encode()
-	}
+	values.Set("msgpad", h["msgpad"].(string))
+	values.Set("md", h["md"].(string))
+	queryUrl := "https://apis.naver.com/phoning/phoning-api/api" + endpoint + "?" + values.Encode()
 	respBody, err := CallAPI("GET", queryUrl, nil, getAPIHeaders(accessToken))
 	if err != nil {
-		return nil, fmt.Errorf("failed to call phoning API: %w", err)
+		return nil, err
 	}
 	var response map[string]interface{}
 	if err := json.Unmarshal(respBody, &response); err != nil {
 		return nil, fmt.Errorf("failed to decode phoning API response: %w, %s", err, string(respBody))
-	}
-	if response["errorCode"] != "common_200" {
-		return nil, fmt.Errorf("%s", string(respBody))
 	}
 	return response, nil
 }
