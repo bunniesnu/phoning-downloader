@@ -21,7 +21,7 @@ func getAPIHeaders(accessToken string) map[string]string {
 	}
 }
 
-func phoning(apiKey, accessToken, endpoint string, params ...map[string]string) (map[string]interface{}, error) {
+func phoning(apiKey, accessToken, endpoint string, params ...map[string]string) (map[string]any, error) {
 	var paramMap map[string]string
 	if len(params) > 0 && params[0] != nil {
 		paramMap = params[0]
@@ -50,7 +50,7 @@ func phoning(apiKey, accessToken, endpoint string, params ...map[string]string) 
 	if err != nil {
 		return nil, err
 	}
-	var response map[string]interface{}
+	var response map[string]any
 	if err := json.Unmarshal(respBody, &response); err != nil {
 		return nil, fmt.Errorf("failed to decode phoning API response: %w, %s", err, string(respBody))
 	}

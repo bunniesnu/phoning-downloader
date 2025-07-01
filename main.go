@@ -28,7 +28,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		decodedResponse := make(map[string]interface{})
+		decodedResponse := make(map[string]any)
 		if err := json.Unmarshal(respBody, &decodedResponse); err != nil {
 			log.Fatalf("Error decoding response: %v", err)
 		}
@@ -40,9 +40,27 @@ func main() {
 	}
 	godotenv.Load()
 	access_token = os.Getenv("ACCESS_TOKEN")
-	res, err := phoning(api_key, access_token, "/fan/v1.0/users/me")
+	_, err = phoning(api_key, access_token, "/fan/v1.0/users/me")
 	if err != nil {
-		log.Fatalf("Error calling phoning API: %v", err)
+		log.Fatalf("%v", err)
 	}
-	log.Printf("Response: %v", res)
+	// All ready, safe to proceed
+	calls, err := phoning(api_key, access_token, "/fan/v1.0/lives", map[string]string{"limit": "100"})
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	for _, call := range calls["data"].([]any) {
+		callMap := call.(map[string]any)
+		liveId := int(callMap["liveId"].(float64))
+		pnxml, err := getPNXML(api_key, access_token, liveId)
+		if err != nil {
+			log.Printf("Error getting PNXML for live ID %d: %v", liveId, err)
+			break
+		}
+		url, ok := pnxml["url"].(string)
+		if !ok {
+			log.Fatalf("PNXML for live ID %d does not contain a valid URL", liveId)
+		}
+		log.Printf("Live ID %d URL: %s", liveId, url)
+	}
 }

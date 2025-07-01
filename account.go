@@ -38,12 +38,12 @@ func getHeaders() map[string]string {
 }
 
 func signUp(email, password, nickname string) ([]byte, error) {
-    body := map[string]interface{}{
+    body := map[string]any{
         "idToken": nil,
         "email":    email,
         "password": password,
         "nickname": nickname,
-        "termsAgreements": []map[string]interface{}{
+        "termsAgreements": []map[string]any{
             {
                 "termsDocumentId": "ACC-1:ko:3",
                 "agreed":          true,
@@ -83,7 +83,7 @@ func check_verification(email string) ([]byte, error) {
 }
 
 func getToken(email, password string) ([]byte, error) {
-	body := map[string]interface{}{
+	body := map[string]any{
 		"email":    email,
 		"password": password,
 	}
