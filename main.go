@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -14,6 +15,13 @@ import (
 )
 
 func main() {
+	outputDir := flag.String("o", "Downloads", "Directory to save downloaded videos")
+	help := flag.Bool("h", false, "Show help message")
+	flag.Parse()
+	if *help {
+		flag.Usage()
+		os.Exit(0)
+	}
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
@@ -86,8 +94,7 @@ func main() {
 		println("You have access to the Phoning API.")
 	}
 	// All ready, safe to proceed
-	downloadDir := "./Downloads"
-	if err := os.MkdirAll(downloadDir, 0755); err != nil {
+	if err := os.MkdirAll(*outputDir, 0755); err != nil {
 		log.Fatalf("Failed to create Downloads directory: %v", err)
 	}
 	var callsData []any = make([]any, 0)
@@ -133,6 +140,6 @@ func main() {
 			log.Fatalf("PNXML for live ID %d does not contain a valid URL", liveId)
 		}
 		ctx := context.Background()
-		DownloadVideo(ctx, url, downloadDir + "/" + strconv.Itoa(liveId) + ".mp4", "./Downloads", 10)
+		DownloadVideo(ctx, url, *outputDir + "/" + strconv.Itoa(liveId) + ".mp4", *outputDir, 10)
 	}
 }
