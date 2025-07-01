@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/joho/godotenv"
 )
@@ -45,6 +47,10 @@ func main() {
 		log.Fatalf("%v", err)
 	}
 	// All ready, safe to proceed
+	downloadDir := "./Downloads"
+	if err := os.MkdirAll(downloadDir, 0755); err != nil {
+		log.Fatalf("Failed to create Downloads directory: %v", err)
+	}
 	calls, err := phoning(api_key, access_token, "/fan/v1.0/lives", map[string]string{"limit": "100"})
 	if err != nil {
 		log.Fatalf("%v", err)
@@ -54,13 +60,13 @@ func main() {
 		liveId := int(callMap["liveId"].(float64))
 		pnxml, err := getPNXML(api_key, access_token, liveId)
 		if err != nil {
-			log.Printf("Error getting PNXML for live ID %d: %v", liveId, err)
-			break
+			log.Fatalf("Error getting PNXML for live ID %d: %v", liveId, err)
 		}
 		url, ok := pnxml["url"].(string)
 		if !ok {
 			log.Fatalf("PNXML for live ID %d does not contain a valid URL", liveId)
 		}
-		log.Printf("Live ID %d URL: %s", liveId, url)
+		ctx := context.Background()
+		DownloadVideo(ctx, url, downloadDir + "/" + strconv.Itoa(liveId) + ".mp4", "./Downloads", 10)
 	}
 }
