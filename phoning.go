@@ -37,9 +37,15 @@ func phoning(apiKey, accessToken, endpoint string, params ...map[string]string) 
 		encodeUrl += "?" + values.Encode()
 	}
 	h := hash(encodeUrl, apiKey)
-	values.Set("msgpad", h["msgpad"].(string))
-	values.Set("md", h["md"].(string))
-	queryUrl := "https://apis.naver.com/phoning/phoning-api/api" + endpoint + "?" + values.Encode()
+	hashValues := url.Values{}
+	hashValues.Set("msgpad", h["msgpad"].(string))
+	hashValues.Set("md", h["md"].(string))
+	queryUrl := encodeUrl
+	if len(values) > 0 {
+		queryUrl += "&" + hashValues.Encode()
+	} else {
+		queryUrl += "?" + hashValues.Encode()
+	}
 	respBody, err := CallAPI("GET", queryUrl, nil, getAPIHeaders(accessToken))
 	if err != nil {
 		return nil, err
