@@ -38,8 +38,8 @@ func phoning(apiKey, accessToken, endpoint string, params ...map[string]string) 
 	}
 	h := hash(encodeUrl, apiKey)
 	hashValues := url.Values{}
-	hashValues.Set("msgpad", h["msgpad"].(string))
-	hashValues.Set("md", h["md"].(string))
+	hashValues.Set("msgpad", h["msgpad"])
+	hashValues.Set("md", h["md"])
 	queryUrl := encodeUrl
 	if len(values) > 0 {
 		queryUrl += "&" + hashValues.Encode()

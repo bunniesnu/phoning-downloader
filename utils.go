@@ -20,7 +20,7 @@ func appendEnv(key, value string) error {
 	return godotenv.Write(envMap, envFile)
 }
 
-func hash(url, apikey string) map[string]interface{} {
+func hash(url, apikey string) map[string]string {
 	apiKey := []byte(apikey)
 
 	msgpad := int(time.Now().UnixNano() / int64(time.Millisecond))
@@ -36,7 +36,7 @@ func hash(url, apikey string) map[string]interface{} {
 	digest := mac.Sum(nil)
 
 	md := base64.StdEncoding.EncodeToString(digest)
-	return map[string]interface{}{
+	return map[string]string{
 		"msgpad": strconv.Itoa(msgpad),
 		"md": md,
 	}
