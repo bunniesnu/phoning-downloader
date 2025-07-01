@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"io"
 	"net/http"
 	"time"
@@ -27,7 +28,17 @@ func CallAPI(method, url string, body []byte, headers map[string]string) ([]byte
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
+	var reader io.Reader = resp.Body
+	if resp.Header.Get("Content-Encoding") == "gzip" {
+		gzReader, err := gzip.NewReader(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		defer gzReader.Close()
+		reader = gzReader
+	}
+
+	respBody, err := io.ReadAll(reader)
 	if err != nil {
 		return nil, err
 	}
