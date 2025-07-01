@@ -51,11 +51,38 @@ func main() {
 	if err := os.MkdirAll(downloadDir, 0755); err != nil {
 		log.Fatalf("Failed to create Downloads directory: %v", err)
 	}
-	calls, err := phoning(api_key, access_token, "/fan/v1.0/lives", map[string]string{"limit": "100"})
-	if err != nil {
-		log.Fatalf("%v", err)
+	var callsData []any = make([]any, 0)
+	nextCursor := ""
+	cnt := 0
+	for {
+		cnt++
+		if cnt > 10 {
+			log.Fatal("Too many iterations, stopping to prevent infinite loop")
+		}
+		params := map[string]string{"limit": "100"}
+		if nextCursor != "" {
+			params["cursor"] = nextCursor
+		}
+		calls, err := phoning(api_key, access_token, "/fan/v1.0/lives", params)
+		if err != nil {
+			log.Fatalf("%v", err)
+		}
+		callsMap, ok := calls["data"].([]any)
+		if !ok {
+			log.Fatalf("Unexpected data format: %T", calls["data"])
+		}
+		callsData = append(callsData, callsMap...)
+		cursors, ok := calls["cursors"].(map[string]any)
+		if !ok {
+			log.Fatalf("Unexpected cursors format: %T", calls["cursors"])
+		}
+		next, ok := cursors["next"].(string)
+		if !ok {
+			break
+		}
+		nextCursor = next
 	}
-	for _, call := range calls["data"].([]any) {
+	for _, call := range callsData {
 		callMap := call.(map[string]any)
 		liveId := int(callMap["liveId"].(float64))
 		pnxml, err := getPNXML(api_key, access_token, liveId)
