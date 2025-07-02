@@ -11,7 +11,7 @@ func getPNXML(apiKey, accessToken string, id int) (map[string]any, error) {
 	params := map[string]string{
 		"countryCode": "KR",
 	}
-	res, err := phoning(apiKey, accessToken, endpoint, params)
+	res, err := phoning("GET", apiKey, accessToken, endpoint, params)
 	if err != nil {
 		return res, err
 	}

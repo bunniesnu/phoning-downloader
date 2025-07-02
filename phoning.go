@@ -7,7 +7,7 @@ import (
 )
 
 func getAPIHeaders(accessToken string) map[string]string {
-	return map[string]string{
+	header := map[string]string{
 		"Host": "apis.naver.com",
 		"Content-Type": "application/json; charset=utf-8",
 		"X-Client-Name": "IOS",
@@ -15,15 +15,18 @@ func getAPIHeaders(accessToken string) map[string]string {
 		"Connection": "keep-alive",
 		"Accept": "application/json",
 		"Accept-Language": "ko-KR,ko;q=0.9",
-		"Authorization": "Bearer " + accessToken,
 		"Accept-Encoding": "gzip, deflate, br",
 		"User-Agent": "Phoning/20102019 CFNetwork/1496.0.7 Darwin/23.5.0",
 	}
+	if accessToken != "" {
+		header["Authorization"] = "Bearer " + accessToken
+	}
+	return header
 }
 
-func phoning(apiKey, accessToken, endpoint string, params ...map[string]string) (map[string]any, error) {
+func phoning(method, apiKey, accessToken, endpoint string, params ...map[string]string) (map[string]any, error) {
 	var paramMap map[string]string
-	if len(params) > 0 && params[0] != nil {
+	if len(params) > 0 && params[0] != nil && method == "GET" {
 		paramMap = params[0]
 	} else {
 		paramMap = make(map[string]string)
@@ -46,7 +49,11 @@ func phoning(apiKey, accessToken, endpoint string, params ...map[string]string) 
 	} else {
 		queryUrl += "?" + hashValues.Encode()
 	}
-	respBody, err := CallAPI("GET", queryUrl, nil, getAPIHeaders(accessToken))
+	body := make([]byte, 0)
+	if method == "POST" || method == "PUT" {
+		body, _ = json.Marshal(params[0])
+	}
+	respBody, err := CallAPI(method, queryUrl, body, getAPIHeaders(accessToken))
 	if err != nil {
 		return nil, err
 	}

@@ -4,14 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
-	"fmt"
 	"log"
 	"os"
 	"strconv"
 
 	"github.com/fatih/color"
 	"github.com/joho/godotenv"
-	"golang.org/x/term"
 )
 
 func main() {
@@ -27,29 +25,19 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 	access_token := os.Getenv("ACCESS_TOKEN")
+	generatingAccount := false
 	if access_token == "" {
-		println("Access Token not found.")
-		email := ""
-		password := ""
-		for email == "" {
-			print("Enter your email: ")
-			fmt.Scanln(&email)
-			if email == "" {
-				println("Email cannot be empty. Please try again.")
-			}
+		generatingAccount = true
+		println("Access Token not found. Generating...")
+		body, err := register()
+		if err != nil {
+			log.Fatal(err)
 		}
-		for password == "" {
-			print("Enter your password: ")
-			bytePassword, err := term.ReadPassword(int(os.Stdin.Fd()))
-			if err != nil {
-				log.Fatal("Error reading password:", err)
-			}
-			password = string(bytePassword)
-			if password == "" {
-				println("Password cannot be empty. Please try again.")
-			}
+		email := body["email"]
+		password := body["password"]
+		if email == "" || password == "" {
+			log.Fatal("Email or password not found in registration response")
 		}
-		println("\nFetching access token...")
 		respBody, err := getToken(email, password)
 		if err != nil {
 			log.Fatal(err)
@@ -63,7 +51,8 @@ func main() {
 			log.Fatal("Access token not found in response")
 		}
 		appendEnv("ACCESS_TOKEN", accessToken)
-		println("Access token fetched successfully.")
+		print("Access token fetch: ")
+		color.Green("success")
 	}
 	godotenv.Load()
 	println("Checking configurations...")
@@ -85,8 +74,19 @@ func main() {
 		color.Red("Please check your configurations in the .env file.")
 		os.Exit(1)
 	}
+	if generatingAccount {
+		_, err := phoning("POST", api_key, "", "/fan/v1.0/login", map[string]string{
+			"wevAccessToken": access_token,
+			"tokenType": "APNS",
+			"deviceToken": "",
+		})
+		if err != nil {
+			color.Red("failed\nYou do not have access to the Phoning API. Please check your network connection and API key.")
+			os.Exit(1)
+		}
+	}
 	print("Checking access to Phoning API... ")
-	_, err = phoning(api_key, access_token, "/fan/v1.0/users/me")
+	_, err = phoning("GET", api_key, access_token, "/fan/v1.0/users/me")
 	if err != nil {
 		color.Red("failed\nYou do not have access to the Phoning API. Please check your network connection, API key, and access token.")
 	} else {
@@ -109,7 +109,7 @@ func main() {
 		if nextCursor != "" {
 			params["cursor"] = nextCursor
 		}
-		calls, err := phoning(api_key, access_token, "/fan/v1.0/lives", params)
+		calls, err := phoning("GET", api_key, access_token, "/fan/v1.0/lives", params)
 		if err != nil {
 			log.Fatalf("%v", err)
 		}
