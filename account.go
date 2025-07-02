@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"maps"
 	"net/url"
 	"os"
 
@@ -29,10 +30,8 @@ var DefaultHeaders = map[string]string{
 
 func getHeaders() map[string]string {
 	godotenv.Load()
-	headers := make(map[string]string)
-	for k, v := range DefaultHeaders {
-		headers[k] = v
-	}
+	headers := make(map[string]string, len(DefaultHeaders)+1)
+	maps.Copy(headers, DefaultHeaders)
 	headers["X-SDK-SERVICE-SECRET"] = os.Getenv("PHONING_SDK_SECRET")
 	return headers
 }

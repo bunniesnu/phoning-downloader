@@ -44,7 +44,7 @@ func CallAPI(method, url string, body []byte, headers map[string]string) ([]byte
 		return nil, err
 	}
 	
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		return respBody, fmt.Errorf("API call failed with status code %d: %s", resp.StatusCode, string(respBody))
 	}
 	return respBody, nil
