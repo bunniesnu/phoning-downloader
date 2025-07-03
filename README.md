@@ -27,7 +27,7 @@ phoning-downloader -o "your_download_path"
 
 You can compile the binary/executable yourself. First, install [Go](https://go.dev/dl/) 1.24.4 on your system. Then, run the following commands.
 ```
-git clone https://github.com/bunniesnu/phoning-downloader.git
+git clone https://github.com/phoning-tools/phoning-downloader.git
 cd phoning-downloader
 go build
 ```
