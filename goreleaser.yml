@@ -1,7 +1,9 @@
+version: 2
+
 project_name: phoning-downloader
 
 builds:
-  - main: ./main.go
+  - main: .
     goos: [linux, windows, darwin]
     goarch: [amd64, arm64]
     ldflags:
