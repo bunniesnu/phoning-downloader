@@ -13,7 +13,7 @@ If you have them, place them in the .env file in the following format.
 
 ```
 API_KEY="*****"
-PHONING_SDK_SECRET="*****"
+SDK_KEY="*****"
 ```
 
 The file should be in the folder where you execute the binary/executable. It will automatically verify whether you did it properly.

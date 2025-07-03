@@ -100,7 +100,7 @@ func DownloadVideo(ctx context.Context, url, destPath, baseDir string, concurren
     partSize := length / int64(concurrency)
     eg, ctx := errgroup.WithContext(ctx)
 
-    for i := 0; i < concurrency; i++ {
+    for i := range concurrency {
         start := int64(i) * partSize
         end := start + partSize - 1
         if i == concurrency-1 {

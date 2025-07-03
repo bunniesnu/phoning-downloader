@@ -32,7 +32,7 @@ func getHeaders() map[string]string {
 	godotenv.Load()
 	headers := make(map[string]string, len(DefaultHeaders)+1)
 	maps.Copy(headers, DefaultHeaders)
-	headers["X-SDK-SERVICE-SECRET"] = os.Getenv("PHONING_SDK_SECRET")
+	headers["X-SDK-SERVICE-SECRET"] = os.Getenv("SDK_KEY")
 	return headers
 }
 
