@@ -4,16 +4,22 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
+	"sync"
 
 	"github.com/fatih/color"
 	"github.com/joho/godotenv"
+	"github.com/vbauerster/mpb/v8"
+	"github.com/vbauerster/mpb/v8/decor"
 )
 
 func main() {
-	outputDir := flag.String("o", "Downloads", "Directory to save downloaded videos")
+	outputDir := flag.String("o", "Downloads_tmp", "Directory to save downloaded videos")
+	concurrency := flag.Int("c", 10, "Concurrency")
 	help := flag.Bool("h", false, "Show help message")
 	flag.Parse()
 	if *help {
@@ -97,6 +103,7 @@ func main() {
 	if err := os.MkdirAll(*outputDir, 0755); err != nil {
 		log.Fatalf("Failed to create Downloads directory: %v", err)
 	}
+	println("Fetching calls...")
 	var callsData []any = make([]any, 0)
 	nextCursor := ""
 	cnt := 0
@@ -128,18 +135,81 @@ func main() {
 		}
 		nextCursor = next
 	}
-	for _, call := range callsData {
-		callMap := call.(map[string]any)
-		liveId := int(callMap["liveId"].(float64))
-		pnxml, err := getPNXML(api_key, access_token, liveId)
-		if err != nil {
-			log.Fatalf("Error getting PNXML for live ID %d: %v", liveId, err)
-		}
-		url, ok := pnxml["url"].(string)
-		if !ok {
-			log.Fatalf("PNXML for live ID %d does not contain a valid URL", liveId)
-		}
-		ctx := context.Background()
-		DownloadVideo(ctx, url, *outputDir + "/" + strconv.Itoa(liveId) + ".mp4", *outputDir, 10)
+	println("Found", len(callsData), "calls. Fetching download URLs...")
+	p := mpb.New(mpb.WithWidth(64), mpb.PopCompletedMode())
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, *concurrency) // limit concurrent downloads
+	wg.Add(len(callsData))
+	// Use context to handle cancellation on error
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	errCh := make(chan error, 1)
+	for _, item := range callsData {
+		go func(call any){
+			sem <- struct{}{} // acquire a slot
+			defer func() { <-sem }() // release the slot
+			defer wg.Done()
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+			callMap := call.(map[string]any)
+			liveId := int(callMap["liveId"].(float64))
+			pnxml, err := getPNXML(api_key, access_token, liveId)
+			if err != nil {
+				log.Fatalf("Error getting PNXML for live ID %d: %v", liveId, err)
+			}
+			url, ok := pnxml["url"].(string)
+			if !ok {
+				log.Fatalf("PNXML for live ID %d does not contain a valid URL", liveId)
+			}
+			liveIdStr := strconv.Itoa(liveId)
+			filepath := *outputDir + "/" + liveIdStr + ".mp4"
+			// HEAD request to get content-length
+			headReq, _ := http.NewRequestWithContext(ctx, http.MethodHead, url, nil)
+			resp, err := http.DefaultClient.Do(headReq)
+			if err != nil || resp.StatusCode != http.StatusOK {
+				log.Printf("HEAD failed for live ID %d: %v", liveId, err)
+				cancel()
+				return
+			}
+			length := resp.ContentLength
+			resp.Body.Close()
+			bar := p.New(length,
+				mpb.BarStyle().Lbound("[").Filler("=").Tip(">").Padding(" ").Rbound("]"),
+				mpb.PrependDecorators(
+					decor.Name(liveIdStr, decor.WC{W: 5, C: decor.DindentRight}),
+					decor.Current(decor.SizeB1024(0), "% .1f", decor.WC{W: 11}),
+					decor.TotalKibiByte(" / % .1f", decor.WC{W: 14, C: decor.DindentRight}),
+					decor.AverageSpeed(decor.SizeB1024(0), "% .1f", decor.WC{W: 13}),
+					decor.Elapsed(decor.ET_STYLE_MMSS, decor.WC{W: 10}),
+					decor.Name(" ETA: ", decor.WC{W: 6}),
+					decor.AverageETA(decor.ET_STYLE_MMSS, decor.WC{W: 9, C: decor.DindentRight}),
+				),
+				mpb.AppendDecorators(
+					decor.NewPercentage("%.2f", decor.WC{W: 7}),
+				),
+			)
+			err = DownloadVideo(ctx, url, filepath, *outputDir, 10, bar)
+			if err != nil {
+				errCh <- fmt.Errorf("download failed for live ID %d: %w", liveId, err)
+				cancel()
+				return
+			}
+			os.Remove(filepath)
+		}(item)
+	}
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	select {
+	case err := <-errCh:
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	case <-done:
+		fmt.Printf("Finished downloading calls.\n")
 	}
 }

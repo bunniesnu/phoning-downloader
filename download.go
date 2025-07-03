@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/vbauerster/mpb/v8"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -61,7 +62,7 @@ func safeCreateFile(destPath, baseDir string, size int64) (*os.File, error) {
 }
 
 // DownloadVideo downloads `url` into `destPath` with up to `concurrency` workers.
-func DownloadVideo(ctx context.Context, url, destPath, baseDir string, concurrency int) error {
+func DownloadVideo(ctx context.Context, url, destPath, baseDir string, concurrency int, bar *mpb.Bar) error {
     // 1. HEAD to get length and check range support
     req, err := http.NewRequestWithContext(ctx, http.MethodHead, url, nil)
     if err != nil {
@@ -92,7 +93,7 @@ func DownloadVideo(ctx context.Context, url, destPath, baseDir string, concurren
 
     // If server doesn't support ranges, just stream it
     if !supportRanges || concurrency <= 1 {
-        return singleDownload(ctx, url, outFile)
+        return singleDownload(ctx, url, outFile, bar)
     }
 
     // 3. Split into chunks
@@ -112,7 +113,7 @@ func DownloadVideo(ctx context.Context, url, destPath, baseDir string, concurren
         eg.Go(func() error {
             var lastErr error
             for attempt := 0; attempt < maxRetries; attempt++ {
-                if err := downloadChunk(ctx, url, outFile, chunkStart, chunkEnd); err != nil {
+                if err := downloadChunk(ctx, url, outFile, chunkStart, chunkEnd, bar); err != nil {
                     lastErr = err
                     time.Sleep(time.Duration(attempt+1) * 500 * time.Millisecond)
                     continue
@@ -127,7 +128,7 @@ func DownloadVideo(ctx context.Context, url, destPath, baseDir string, concurren
 }
 
 // singleDownload streams the entire file when ranges aren’t supported
-func singleDownload(ctx context.Context, url string, outFile *os.File) error {
+func singleDownload(ctx context.Context, url string, outFile *os.File, bar *mpb.Bar) error {
     req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
     resp, err := http.DefaultClient.Do(req)
     if err != nil {
@@ -137,12 +138,13 @@ func singleDownload(ctx context.Context, url string, outFile *os.File) error {
     if resp.StatusCode != http.StatusOK {
         return fmt.Errorf("download failed: %s", resp.Status)
     }
-    _, err = io.Copy(outFile, resp.Body)
+    reader := bar.ProxyReader(resp.Body)
+    _, err = io.Copy(outFile, reader)
     return err
 }
 
 // downloadChunk fetches a single byte range [start–end] and writes it at the right offset.
-func downloadChunk(ctx context.Context, url string, outFile *os.File, start, end int64) error {
+func downloadChunk(ctx context.Context, url string, outFile *os.File, start, end int64, bar *mpb.Bar) error {
     req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
     req.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", start, end))
 
@@ -156,22 +158,24 @@ func downloadChunk(ctx context.Context, url string, outFile *os.File, start, end
     if resp.StatusCode != http.StatusPartialContent {
         return fmt.Errorf("expected 206 for range %d-%d, got %d", start, end, resp.StatusCode)
     }
-
+    
+    reader := bar.ProxyReader(resp.Body)
     buf := make([]byte, 32*1024)
     offset := start
     for {
-        n, readErr := resp.Body.Read(buf)
+        n, readErr := reader.Read(buf)
         if n > 0 {
             if _, writeErr := outFile.WriteAt(buf[:n], offset); writeErr != nil {
                 return writeErr
             }
             offset += int64(n)
         }
+        if readErr == io.EOF {
+            break
+        }
         if readErr != nil {
-            if readErr == io.EOF {
-                return nil
-            }
             return readErr
         }
     }
+    return nil
 }
