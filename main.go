@@ -250,7 +250,7 @@ func main() {
 		color.Green("success")
 	}
 	skipIds := make([]int, 0)
-	existingFiles := make([]int, 0)
+	existingIds := make([]int, 0)
 	files, err := os.ReadDir(*outputDir)
 	if err != nil {
 		log.Fatalf("Failed to read output directory: %v", err)
@@ -271,34 +271,44 @@ func main() {
 		if _, ok := sizes[liveId]; !ok {
 			continue
 		}
-		existingFiles = append(existingFiles, liveId)
+		existingIds = append(existingIds, liveId)
 	}
 	if !*disableHash {
-		fmt.Printf("Found %d existing files in the output directory. Checking hash matches...\n", len(existingFiles))
-		for _, liveId := range existingFiles {
+		fmt.Printf("Found %d existing files in the output directory. Checking hash matches...\n", len(existingIds))
+		cleanupFunc := func (liveId int, ctx context.Context) (bool, error) {
 			liveIdStr := strconv.Itoa(liveId)
 			filePath := filepath.Join(*outputDir, liveIdStr+".mp4")
 			compSum, ok := loadedSums[liveIdStr]
 			if !ok {
-				log.Fatalf("hash for live ID %d not found in sum.json", liveId)
+				return false, fmt.Errorf("hash for live ID %d not found in sum.json", liveId)
 			}
 			sum, err := checksum(filePath)
 			if err != nil {
-				log.Fatalf("error calculating hash for live ID %d: %v", liveId, err)
+				return false, fmt.Errorf("error calculating hash for live ID %d: %v", liveId, err)
 			}
 			if sum != compSum {
 				err = os.Remove(filePath)
 				if err != nil {
-					log.Fatalf("error removing file for live ID %d: %v", liveId, err)
+					return false, fmt.Errorf("error removing file for live ID %d: %v", liveId, err)
 				}
 				log.Printf("Removed file with hash mismatch: live ID %d", liveId)
-			} else {
+				return false, nil
+			}
+			return true, nil
+		}
+		checkedIdsMap, err := concurrentExecute(cleanupFunc, existingIds, *concurrency)
+		if err != nil {
+			println(err)
+			os.Exit(1)
+		}
+		for liveId, ok := range checkedIdsMap {
+			if ok {
 				skipIds = append(skipIds, liveId)
 			}
 		}
-		println("Removed", len(existingFiles) - len(skipIds), "files with mismatching hashes, found", len(skipIds), "existing files with matching hashes. Skipping them.")
+		println("Removed", len(existingIds) - len(skipIds), "files with mismatching hashes, found", len(skipIds), "existing files with matching hashes. Skipping them.")
 	} else {
-		skipIds = existingFiles
+		skipIds = existingIds
 		fmt.Printf("Found %d existing files in the output directory. Skipping them.\n", len(skipIds))
 	}
 	newLiveIds := make([]int, 0, num-len(skipIds))
