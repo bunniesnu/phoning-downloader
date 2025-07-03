@@ -162,6 +162,8 @@ func main() {
 		mpb.BarStyle().Lbound("[").Filler("=").Tip(">").Padding(" ").Rbound("]"),
 		mpb.PrependDecorators(
 			decor.Name("Fetching...", decor.WC{W: 5, C: decor.DindentRight}),
+			decor.Current(0, "(%d", decor.WC{W: 5}),
+			decor.Total(0, "/%d)", decor.WC{W: 5, C: decor.DindentRight}),
 		),
 		mpb.AppendDecorators(
 			decor.NewPercentage("%.2f", decor.WC{W: 7}),
@@ -212,7 +214,7 @@ func main() {
 		mpb.BarStyle().Lbound("[").Filler("=").Tip(">").Padding(" ").Rbound("]"),
 		mpb.BarPriority(1000),
 		mpb.PrependDecorators(
-			decor.Name("Total", decor.WC{W: 5, C: decor.DindentRight}),
+			decor.Name("", decor.WC{W: 5, C: decor.DindentRight}),
 			decor.Current(decor.SizeB1024(0), "% .1f", decor.WC{W: 11}),
 			decor.TotalKibiByte(" / % .1f", decor.WC{W: 14, C: decor.DindentRight}),
 			decor.AverageSpeed(decor.SizeB1024(0), "% .1f", decor.WC{W: 13}),
@@ -222,6 +224,15 @@ func main() {
 		),
 		mpb.AppendDecorators(
 			decor.NewPercentage("%.2f", decor.WC{W: 7}),
+		),
+	)
+	countbar := p.New(int64(num),
+		mpb.BarStyle().Padding(" ").Lbound(" ").Filler(" ").Tip(" ").Lbound(" ").Rbound(" "),
+		mpb.BarPriority(999),
+		mpb.PrependDecorators(
+			decor.Name(color.CyanString("Total"), decor.WC{W: 5, C: decor.DindentRight}),
+			decor.Current(0, "(%d", decor.WC{W: 5}),
+			decor.Total(0, "/%d)", decor.WC{W: 5, C: decor.DindentRight}),
 		),
 	)
 	downloadFunction := func(liveId int, ctx context.Context) (bool, error) {
@@ -264,6 +275,7 @@ func main() {
 			return false, fmt.Errorf("error downloading live ID %d: %v", liveId, err)
 		}
 		os.Remove(filepath)
+		countbar.IncrInt64(1)
 		return true, nil
 	}
 	_, err = concurrentExecute(downloadFunction, liveIds, *concurrency)
