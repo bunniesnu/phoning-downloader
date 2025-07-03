@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/fatih/color"
@@ -245,7 +246,7 @@ func main() {
 			log.Fatalf("PNXML for live ID %d does not contain a valid URL", liveId)
 		}
 		liveIdStr := strconv.Itoa(liveId)
-		filepath := *outputDir + "/" + liveIdStr + ".mp4"
+		downloadFilePath := filepath.Join(*outputDir, liveIdStr+".mp4")
 		bar := p.New(sizes[liveId],
 			mpb.BarStyle().Lbound("[").Filler("=").Tip(">").Padding(" ").Rbound("]"),
 			mpb.PrependDecorators(
@@ -272,11 +273,11 @@ func main() {
 			),
 		)
 		hookTotalProgress(bar, totalbar)
-		err = DownloadVideo(ctx, url, filepath, *outputDir, 10, bar)
+		err = DownloadVideo(ctx, url, downloadFilePath, *outputDir, 10, bar)
 		if err != nil {
 			return false, fmt.Errorf("error downloading live ID %d: %v", liveId, err)
 		}
-		os.Remove(filepath)
+		os.Remove(downloadFilePath)
 		countbar.IncrInt64(1)
 		return true, nil
 	}
