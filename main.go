@@ -179,6 +179,20 @@ func main() {
 	}
 	p.Wait()
 	fmt.Printf("Finished fetching %d calls.\n", len(callsData))
+	totalSize := int64(0)
+	for _, size := range sizes {
+		if size <= 0 {
+			log.Fatal("Some calls have invalid sizes, please check the error log for details.")
+		}
+		totalSize += size
+	}
+	if totalSize > (1024 * 1024 * 1024) {
+		fmt.Printf("Total size of all calls: %.2f GB\n", float64(totalSize)/1024/1024/1024)
+	} else if totalSize > (1024 * 1024) {
+		fmt.Printf("Total size of all calls: %.2f MB\n", float64(totalSize)/1024/1024)
+	} else {
+		fmt.Printf("Total size of all calls: %.2f KB\n", float64(totalSize)/1024)
+	}
 	println("Downloading...")
 	p = mpb.New(mpb.WithWidth(64), mpb.PopCompletedMode())
 	downloadFunction := func(call any, ctx context.Context, cancel context.CancelFunc, errCh chan error) {
