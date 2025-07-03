@@ -25,6 +25,12 @@ func main() {
 		flag.Usage()
 		os.Exit(0)
 	}
+	if *concurrency < 1 {
+		log.Fatal("Concurrency must be at least 1")
+	}
+	if *concurrency > 15 {
+		color.Yellow("Warning: High concurrency may cause issues. Consider using a lower value.")
+	}
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
