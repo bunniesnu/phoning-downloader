@@ -188,14 +188,14 @@ func main() {
 		bar.IncrInt64(1)
 		return length, nil
 	}
-	res, err := concurrentExecute(fetchFunction, liveIds, *concurrency)
+	sizes, err := concurrentExecute(fetchFunction, liveIds, *concurrency)
 	if err != nil {
 		log.Fatalf("Error during concurrent execution: %v", err)
 	}
 	p.Wait()
 	println("Finished fetching calls.")
 	totalSize := int64(0)
-	for _, size := range res {
+	for _, size := range sizes {
 		if size <= 0 {
 			log.Fatal("Some calls have invalid sizes, please check the error log for details.")
 		}
@@ -246,15 +246,7 @@ func main() {
 		}
 		liveIdStr := strconv.Itoa(liveId)
 		filepath := *outputDir + "/" + liveIdStr + ".mp4"
-		// HEAD request to get content-length
-		headReq, _ := http.NewRequestWithContext(ctx, http.MethodHead, url, nil)
-		resp, err := http.DefaultClient.Do(headReq)
-		if err != nil || resp.StatusCode != http.StatusOK {
-			return false, fmt.Errorf("HEAD request failed for live ID %d: %v", liveId, err)
-		}
-		length := resp.ContentLength
-		resp.Body.Close()
-		bar := p.New(length,
+		bar := p.New(sizes[liveId],
 			mpb.BarStyle().Lbound("[").Filler("=").Tip(">").Padding(" ").Rbound("]"),
 			mpb.PrependDecorators(
 				decor.Name(liveIdStr, decor.WC{W: 5, C: decor.DindentRight}),
