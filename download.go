@@ -16,7 +16,7 @@ import (
 )
 
 const (
-    maxAllowedSize = 10 * 1024 * 1024 * 1024 // 10 GB
+    maxAllowedSize = 10 * 1024 * 1024 * 1024 // 10 GiB
     maxRetries = 3
 )
 

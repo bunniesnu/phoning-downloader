@@ -202,11 +202,11 @@ func main() {
 		totalSize += size
 	}
 	if totalSize > (1024 * 1024 * 1024) {
-		fmt.Printf("Total size of all calls: %.2f GB\n", float64(totalSize)/1024/1024/1024)
+		fmt.Printf("Total size of all calls: %.2f GiB\n", float64(totalSize)/1024/1024/1024)
 	} else if totalSize > (1024 * 1024) {
-		fmt.Printf("Total size of all calls: %.2f MB\n", float64(totalSize)/1024/1024)
+		fmt.Printf("Total size of all calls: %.2f MiB\n", float64(totalSize)/1024/1024)
 	} else {
-		fmt.Printf("Total size of all calls: %.2f KB\n", float64(totalSize)/1024)
+		fmt.Printf("Total size of all calls: %.2f KiB\n", float64(totalSize)/1024)
 	}
 	println("Downloading...")
 	p = mpb.New(mpb.WithWidth(64), mpb.PopCompletedMode())
