@@ -134,10 +134,24 @@ func main() {
 		}
 		nextCursor = next
 	}
-	println("Found", len(callsData), "calls. Fetching informations...")
-	p := mpb.New(mpb.WithWidth(64), mpb.PopCompletedMode())
 	num := len(callsData)
-	sizes := make(map[int]int64, num)
+	println("Found", num, "calls. Fetching informations...")
+	liveIds := make([]int, num)
+	callsMap := make(map[int](map[string]any), num)
+	for i, call := range callsData {
+		callMap, ok := call.(map[string]any)
+		if !ok {
+			log.Fatalf("Unexpected call format: %T", call)
+		}
+		liveId, ok := callMap["liveId"].(float64)
+		if !ok {
+			log.Fatalf("Live ID not found in call: %v", callMap)
+		}
+		liveIdInt := int(liveId)
+		callsMap[liveIdInt] = callMap
+		liveIds[i] = liveIdInt
+	}
+	p := mpb.New(mpb.WithWidth(64), mpb.PopCompletedMode())
 	bar := p.New(int64(num),
 		mpb.BarStyle().Lbound("[").Filler("=").Tip(">").Padding(" ").Rbound("]"),
 		mpb.PrependDecorators(
@@ -147,9 +161,7 @@ func main() {
 			decor.NewPercentage("%.2f", decor.WC{W: 7}),
 		),
 	)
-	fetchFunction := func (call any, ctx context.Context, cancel context.CancelFunc, errCh chan error) {
-		callMap := call.(map[string]any)
-		liveId := int(callMap["liveId"].(float64))
+	fetchFunction := func (liveId int, ctx context.Context) (int64, error) {
 		pnxml, err := getPNXML(api_key, access_token, liveId)
 		if err != nil {
 			log.Fatalf("Error getting PNXML for live ID %d: %v", liveId, err)
@@ -161,26 +173,21 @@ func main() {
 		headReq, _ := http.NewRequestWithContext(ctx, http.MethodHead, url, nil)
 		resp, err := http.DefaultClient.Do(headReq)
 		if err != nil || resp.StatusCode != http.StatusOK {
-			log.Printf("HEAD failed for live ID %d: %v", liveId, err)
-			cancel()
-			return
+			return 0, fmt.Errorf("HEAD request failed for live ID %d: %v", liveId, err)
 		}
 		length := resp.ContentLength
 		resp.Body.Close()
-		sizes[liveId] = length
 		bar.IncrInt64(1)
+		return length, nil
 	}
-	ok, err := concurrentExecute(fetchFunction, callsData, *concurrency)
+	res, err := concurrentExecute(fetchFunction, liveIds, *concurrency)
 	if err != nil {
 		log.Fatalf("Error during concurrent execution: %v", err)
-	}
-	if !ok {
-		log.Fatal("Some fetches failed, check the error log for details.")
 	}
 	p.Wait()
 	println("Finished fetching calls.")
 	totalSize := int64(0)
-	for _, size := range sizes {
+	for _, size := range res {
 		if size <= 0 {
 			log.Fatal("Some calls have invalid sizes, please check the error log for details.")
 		}
@@ -211,9 +218,7 @@ func main() {
 			decor.NewPercentage("%.2f", decor.WC{W: 7}),
 		),
 	)
-	downloadFunction := func(call any, ctx context.Context, cancel context.CancelFunc, errCh chan error) {
-		callMap := call.(map[string]any)
-		liveId := int(callMap["liveId"].(float64))
+	downloadFunction := func(liveId int, ctx context.Context) (bool, error) {
 		pnxml, err := getPNXML(api_key, access_token, liveId)
 		if err != nil {
 			log.Fatalf("Error getting PNXML for live ID %d: %v", liveId, err)
@@ -228,9 +233,7 @@ func main() {
 		headReq, _ := http.NewRequestWithContext(ctx, http.MethodHead, url, nil)
 		resp, err := http.DefaultClient.Do(headReq)
 		if err != nil || resp.StatusCode != http.StatusOK {
-			log.Printf("HEAD failed for live ID %d: %v", liveId, err)
-			cancel()
-			return
+			return false, fmt.Errorf("HEAD request failed for live ID %d: %v", liveId, err)
 		}
 		length := resp.ContentLength
 		resp.Body.Close()
@@ -252,19 +255,15 @@ func main() {
 		hookTotalProgress(bar, totalbar)
 		err = DownloadVideo(ctx, url, filepath, *outputDir, 10, bar)
 		if err != nil {
-			errCh <- fmt.Errorf("download failed for live ID %d: %w", liveId, err)
-			cancel()
-			return
+			return false, fmt.Errorf("error downloading live ID %d: %v", liveId, err)
 		}
 		os.Remove(filepath)
+		return true, nil
 	}
-	ok, err = concurrentExecute(downloadFunction, callsData, *concurrency)
+	_, err = concurrentExecute(downloadFunction, liveIds, *concurrency)
 	if err != nil {
 		log.Fatalf("Error during concurrent execution: %v", err)
 	}
-	if !ok {
-		log.Fatal("Some downloads failed, check the error log for details.")
-	}
 	p.Wait()
-	fmt.Printf("Finished downloading %d calls.\n", len(callsData))
+	fmt.Printf("Finished downloading %d calls.\n", num)
 }

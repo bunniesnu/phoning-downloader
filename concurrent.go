@@ -5,15 +5,17 @@ import (
 	"sync"
 )
 
-func concurrentExecute[T any](f func(T, context.Context, context.CancelFunc, chan error), items []T, concurrency int) (bool, error) {
+func concurrentExecute[T comparable, R any](f func(T, context.Context) (R, error), items []T, concurrency int) (map[T]R, error) {
 	var wg sync.WaitGroup
+	results := make(map[T]R, len(items))
+	var mu sync.Mutex
 	sem := make(chan struct{}, concurrency) // limit concurrent executions
-	wg.Add(len(items))
 	// Use context to handle cancellation on error
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	errCh := make(chan error, 1)
 	for _, item := range items {
+		wg.Add(1)
 		go func(param T){
 			sem <- struct{}{} // acquire a slot
 			defer func() { <-sem }() // release the slot
@@ -23,7 +25,15 @@ func concurrentExecute[T any](f func(T, context.Context, context.CancelFunc, cha
 					return
 				default:
 			}
-			f(param, ctx, cancel, errCh)
+			res, err := f(param, ctx)
+			if err != nil {
+				errCh <- err
+				cancel()
+				return
+			}
+			mu.Lock()
+			results[param] = res
+			mu.Unlock()
 		}(item)
 	}
 	done := make(chan struct{})
@@ -33,8 +43,8 @@ func concurrentExecute[T any](f func(T, context.Context, context.CancelFunc, cha
 	}()
 	select {
 		case err := <-errCh:
-			return false, err
+			return nil, err
 		case <-done:
-			return true, nil
+			return results, nil
 	}
 }
