@@ -134,8 +134,53 @@ func main() {
 		}
 		nextCursor = next
 	}
-	println("Found", len(callsData), "calls. Downloading...")
+	println("Found", len(callsData), "calls. Fetching informations...")
 	p := mpb.New(mpb.WithWidth(64), mpb.PopCompletedMode())
+	num := len(callsData)
+	sizes := make(map[int]int64, num)
+	bar := p.New(int64(num),
+		mpb.BarStyle().Lbound("[").Filler("=").Tip(">").Padding(" ").Rbound("]"),
+		mpb.PrependDecorators(
+			decor.Name("Fetching...", decor.WC{W: 5, C: decor.DindentRight}),
+		),
+		mpb.AppendDecorators(
+			decor.NewPercentage("%.2f", decor.WC{W: 7}),
+		),
+	)
+	fetchFunction := func (call any, ctx context.Context, cancel context.CancelFunc, errCh chan error) {
+		callMap := call.(map[string]any)
+		liveId := int(callMap["liveId"].(float64))
+		pnxml, err := getPNXML(api_key, access_token, liveId)
+		if err != nil {
+			log.Fatalf("Error getting PNXML for live ID %d: %v", liveId, err)
+		}
+		url, ok := pnxml["url"].(string)
+		if !ok {
+			log.Fatalf("PNXML for live ID %d does not contain a valid URL", liveId)
+		}
+		headReq, _ := http.NewRequestWithContext(ctx, http.MethodHead, url, nil)
+		resp, err := http.DefaultClient.Do(headReq)
+		if err != nil || resp.StatusCode != http.StatusOK {
+			log.Printf("HEAD failed for live ID %d: %v", liveId, err)
+			cancel()
+			return
+		}
+		length := resp.ContentLength
+		resp.Body.Close()
+		sizes[liveId] = length
+		bar.IncrInt64(1)
+	}
+	ok, err := concurrentExecute(fetchFunction, callsData, *concurrency)
+	if err != nil {
+		log.Fatalf("Error during concurrent execution: %v", err)
+	}
+	if !ok {
+		log.Fatal("Some fetches failed, check the error log for details.")
+	}
+	p.Wait()
+	fmt.Printf("Finished fetching %d calls.\n", len(callsData))
+	println("Downloading...")
+	p = mpb.New(mpb.WithWidth(64), mpb.PopCompletedMode())
 	downloadFunction := func(call any, ctx context.Context, cancel context.CancelFunc, errCh chan error) {
 		callMap := call.(map[string]any)
 		liveId := int(callMap["liveId"].(float64))
@@ -182,14 +227,13 @@ func main() {
 		}
 		os.Remove(filepath)
 	}
-	ok, err := concurrentExecute(downloadFunction, callsData, *concurrency)
+	ok, err = concurrentExecute(downloadFunction, callsData, *concurrency)
 	if err != nil {
 		log.Fatalf("Error during concurrent execution: %v", err)
 	}
 	if !ok {
 		log.Fatal("Some downloads failed, check the error log for details.")
-	} else {
-		fmt.Printf("Finished downloading %d calls.\n", len(callsData))
 	}
 	p.Wait()
+	fmt.Printf("Finished downloading %d calls.\n", len(callsData))
 }
