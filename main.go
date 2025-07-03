@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -26,11 +27,15 @@ func main() {
 	concurrency := flag.Int("c", 10, "Concurrent downloads")
 	chunk := flag.Int("d", 10, "Number of chunks to download in parallel")
 	disableHash := flag.Bool("f", false, "Do not check hash values (might get corrupted files)")
+	verbose := flag.Bool("v", false, "Enable verbose output")
 	help := flag.Bool("h", false, "Show help message")
 	flag.Parse()
 	if *help {
 		flag.Usage()
 		os.Exit(0)
+	}
+	if !*verbose {
+		log.SetOutput(io.Discard)
 	}
 	if *concurrency < 1 {
 		log.Fatal("Concurrency must be at least 1")
