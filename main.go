@@ -17,6 +17,7 @@ import (
 	"github.com/vbauerster/mpb/v8/decor"
 )
 
+const fetchConcurrency = 64
 const warningConcurrency = 15
 
 func main() {
@@ -195,7 +196,7 @@ func main() {
 		bar.IncrInt64(1)
 		return length, nil
 	}
-	sizes, err := concurrentExecute(fetchFunction, liveIds, *concurrency)
+	sizes, err := concurrentExecute(fetchFunction, liveIds, fetchConcurrency)
 	if err != nil {
 		log.Fatalf("Error during concurrent execution: %v", err)
 	}
