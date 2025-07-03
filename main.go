@@ -178,7 +178,7 @@ func main() {
 		log.Fatal("Some fetches failed, check the error log for details.")
 	}
 	p.Wait()
-	fmt.Printf("Finished fetching %d calls.\n", len(callsData))
+	println("Finished fetching calls.")
 	totalSize := int64(0)
 	for _, size := range sizes {
 		if size <= 0 {
@@ -195,6 +195,22 @@ func main() {
 	}
 	println("Downloading...")
 	p = mpb.New(mpb.WithWidth(64), mpb.PopCompletedMode())
+	totalbar := p.New(totalSize,
+		mpb.BarStyle().Lbound("[").Filler("=").Tip(">").Padding(" ").Rbound("]"),
+		mpb.BarPriority(1000),
+		mpb.PrependDecorators(
+			decor.Name("Total", decor.WC{W: 5, C: decor.DindentRight}),
+			decor.Current(decor.SizeB1024(0), "% .1f", decor.WC{W: 11}),
+			decor.TotalKibiByte(" / % .1f", decor.WC{W: 14, C: decor.DindentRight}),
+			decor.AverageSpeed(decor.SizeB1024(0), "% .1f", decor.WC{W: 13}),
+			decor.Elapsed(decor.ET_STYLE_MMSS, decor.WC{W: 10}),
+			decor.Name(" ETA: ", decor.WC{W: 6}),
+			decor.AverageETA(decor.ET_STYLE_MMSS, decor.WC{W: 9, C: decor.DindentRight}),
+		),
+		mpb.AppendDecorators(
+			decor.NewPercentage("%.2f", decor.WC{W: 7}),
+		),
+	)
 	downloadFunction := func(call any, ctx context.Context, cancel context.CancelFunc, errCh chan error) {
 		callMap := call.(map[string]any)
 		liveId := int(callMap["liveId"].(float64))
@@ -233,6 +249,7 @@ func main() {
 				decor.NewPercentage("%.2f", decor.WC{W: 7}),
 			),
 		)
+		hookTotalProgress(bar, totalbar)
 		err = DownloadVideo(ctx, url, filepath, *outputDir, 10, bar)
 		if err != nil {
 			errCh <- fmt.Errorf("download failed for live ID %d: %w", liveId, err)

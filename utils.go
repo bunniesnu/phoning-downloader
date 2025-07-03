@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
+	"github.com/vbauerster/mpb/v8"
 )
 
 func appendEnv(key, value string) error {
@@ -40,4 +41,22 @@ func hash(url, apikey string) map[string]string {
 		"msgpad": strconv.Itoa(msgpad),
 		"md": md,
 	}
+}
+
+func hookTotalProgress(bar, totalBar *mpb.Bar) {
+    go func() {
+        var lastVal int64 = 0
+        for {
+            time.Sleep(100 * time.Millisecond) // adjust if needed
+            curr := bar.Current()
+            delta := curr - lastVal
+            if delta > 0 {
+                totalBar.IncrBy(int(delta))
+                lastVal = curr
+            }
+            if bar.Completed() {
+                break
+            }
+        }
+    }()
 }
