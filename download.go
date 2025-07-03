@@ -112,7 +112,7 @@ func DownloadVideo(ctx context.Context, url, destPath, baseDir string, concurren
 
         eg.Go(func() error {
             var lastErr error
-            for attempt := 0; attempt < maxRetries; attempt++ {
+            for attempt := range maxRetries {
                 if err := downloadChunk(ctx, url, outFile, chunkStart, chunkEnd, bar); err != nil {
                     lastErr = err
                     time.Sleep(time.Duration(attempt+1) * 500 * time.Millisecond)

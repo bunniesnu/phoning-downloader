@@ -24,6 +24,7 @@ func main() {
 	outputDir := flag.String("o", "Downloads", "Directory to save downloaded videos")
 	concurrency := flag.Int("c", 10, "Concurrent downloads")
 	chunk := flag.Int("d", 10, "Number of chunks to download in parallel")
+	disableHash := flag.Bool("f", false, "Do not check hash values (might get corrupted files)")
 	help := flag.Bool("h", false, "Show help message")
 	flag.Parse()
 	if *help {
@@ -216,6 +217,32 @@ func main() {
 	} else {
 		fmt.Printf("Total size of all calls: %.2f KiB\n", float64(totalSize)/1024)
 	}
+	loadedSums := make(map[string]string)
+	if !*disableHash {
+		println("Verifying hash file...")
+		jsonFile, err := os.Open("sum.json")
+		if err != nil {
+			log.Fatalf("Error opening sum.json: %v", err)
+		}
+		decoder := json.NewDecoder(jsonFile)
+		if err := decoder.Decode(&loadedSums); err != nil {
+			log.Fatalf("Error decoding sum.json: %v", err)
+		}
+		jsonFile.Close()
+		print("Hash file verification: ")
+		if len(loadedSums) != len(liveIds) {
+			color.Red("failed\nHash file does not match fetched calls.")
+			os.Exit(1)
+		}
+		for _, liveId := range liveIds {
+			liveIdStr := strconv.Itoa(liveId)
+			if _, ok := loadedSums[liveIdStr]; !ok {
+				color.Red("failed\nHash file does not match fetched calls.")
+				os.Exit(1)
+			}
+		}
+		color.Green("success")
+	}
 	println("Downloading...")
 	p = mpb.New(mpb.WithWidth(64), mpb.PopCompletedMode())
 	totalbar := p.New(totalSize,
@@ -244,6 +271,11 @@ func main() {
 		),
 	)
 	downloadFunction := func(liveId int, ctx context.Context) (bool, error) {
+		liveIdStr := strconv.Itoa(liveId)
+		compSum, ok := loadedSums[liveIdStr]
+		if !*disableHash && !ok {
+			return false, fmt.Errorf("hash for live ID %d not found in sum.json", liveId)
+		}
 		pnxml, err := getPNXML(api_key, access_token, liveId)
 		if err != nil {
 			log.Fatalf("Error getting PNXML for live ID %d: %v", liveId, err)
@@ -252,7 +284,6 @@ func main() {
 		if !ok {
 			log.Fatalf("PNXML for live ID %d does not contain a valid URL", liveId)
 		}
-		liveIdStr := strconv.Itoa(liveId)
 		downloadFilePath := filepath.Join(*outputDir, liveIdStr+".mp4")
 		bar := p.New(sizes[liveId],
 			mpb.BarStyle().Lbound("[").Filler("=").Tip(">").Padding(" ").Rbound("]"),
@@ -284,7 +315,15 @@ func main() {
 		if err != nil {
 			return false, fmt.Errorf("error downloading live ID %d: %v", liveId, err)
 		}
-		os.Remove(downloadFilePath)
+		if !*disableHash {
+			sum, err := checksum(downloadFilePath)
+			if err != nil {
+				return false, fmt.Errorf("error calculating hash for live ID %d: %v", liveId, err)
+			}
+			if sum != compSum {
+				return false, fmt.Errorf("hash mismatch for live ID %d: expected %s, got %s", liveId, compSum, sum)
+			}
+		}
 		countbar.IncrInt64(1)
 		return true, nil
 	}
