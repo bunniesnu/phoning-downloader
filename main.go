@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 
 	"github.com/fatih/color"
@@ -242,6 +243,76 @@ func main() {
 			}
 		}
 		color.Green("success")
+	}
+	skipIds := make([]int, 0)
+	existingFiles := make([]int, 0)
+	files, err := os.ReadDir(*outputDir)
+	if err != nil {
+		log.Fatalf("Failed to read output directory: %v", err)
+	}
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+		fileName := file.Name()
+		if len(fileName) < 4 || fileName[len(fileName)-4:] != ".mp4" {
+			continue
+		}
+		liveIdStr := fileName[:len(fileName)-4]
+		liveId, err := strconv.Atoi(liveIdStr)
+		if err != nil {
+			continue
+		}
+		if _, ok := sizes[liveId]; !ok {
+			continue
+		}
+		existingFiles = append(existingFiles, liveId)
+	}
+	if !*disableHash {
+		fmt.Printf("Found %d existing files in the output directory. Checking hash matches...\n", len(existingFiles))
+		for _, liveId := range existingFiles {
+			liveIdStr := strconv.Itoa(liveId)
+			filePath := filepath.Join(*outputDir, liveIdStr+".mp4")
+			compSum, ok := loadedSums[liveIdStr]
+			if !ok {
+				log.Fatalf("hash for live ID %d not found in sum.json", liveId)
+			}
+			sum, err := checksum(filePath)
+			if err != nil {
+				log.Fatalf("error calculating hash for live ID %d: %v", liveId, err)
+			}
+			if sum != compSum {
+				err = os.Remove(filePath)
+				if err != nil {
+					log.Fatalf("error removing file for live ID %d: %v", liveId, err)
+				}
+				log.Printf("Removed file with hash mismatch: live ID %d", liveId)
+			} else {
+				skipIds = append(skipIds, liveId)
+			}
+		}
+		println("Removed", len(existingFiles) - len(skipIds), "files with mismatching hashes, found", len(skipIds), "existing files with matching hashes. Skipping them.")
+	} else {
+		skipIds = existingFiles
+		fmt.Printf("Found %d existing files in the output directory. Skipping them.\n", len(skipIds))
+	}
+	newLiveIds := make([]int, 0, num-len(skipIds))
+	for _, liveId := range liveIds {
+		if !slices.Contains(skipIds, liveId) {
+			newLiveIds = append(newLiveIds, liveId)
+		}
+	}
+	liveIds = newLiveIds
+	num = len(liveIds)
+	totalSize = 0
+	for id, size := range sizes {
+		if size <= 0 {
+			log.Fatal("Some calls have invalid sizes, please check the error log for details.")
+		}
+		if slices.Contains(skipIds, id) {
+			continue
+		}
+		totalSize += size
 	}
 	println("Downloading...")
 	p = mpb.New(mpb.WithWidth(64), mpb.PopCompletedMode())
