@@ -17,9 +17,12 @@ import (
 	"github.com/vbauerster/mpb/v8/decor"
 )
 
+const warningConcurrency = 15
+
 func main() {
 	outputDir := flag.String("o", "Downloads", "Directory to save downloaded videos")
-	concurrency := flag.Int("c", 10, "Concurrency")
+	concurrency := flag.Int("c", 10, "Concurrent downloads")
+	chunk := flag.Int("d", 10, "Number of chunks to download in parallel")
 	help := flag.Bool("h", false, "Show help message")
 	flag.Parse()
 	if *help {
@@ -29,8 +32,11 @@ func main() {
 	if *concurrency < 1 {
 		log.Fatal("Concurrency must be at least 1")
 	}
-	if *concurrency > 15 {
+	if *concurrency > warningConcurrency {
 		color.Yellow("Warning: High concurrency may cause issues. Consider using a lower value.")
+	}
+	if *chunk < 1 {
+		log.Fatal("Chunk size must be at least 1")
 	}
 	err := godotenv.Load()
 	if err != nil {
@@ -273,7 +279,7 @@ func main() {
 			),
 		)
 		hookTotalProgress(bar, totalbar)
-		err = DownloadVideo(ctx, url, downloadFilePath, *outputDir, 10, bar)
+		err = DownloadVideo(ctx, url, downloadFilePath, *outputDir, *chunk, bar)
 		if err != nil {
 			return false, fmt.Errorf("error downloading live ID %d: %v", liveId, err)
 		}
