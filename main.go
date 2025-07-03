@@ -262,11 +262,21 @@ func main() {
 				decor.TotalKibiByte(" / % .1f", decor.WC{W: 14, C: decor.DindentRight}),
 				decor.AverageSpeed(decor.SizeB1024(0), "% .1f", decor.WC{W: 13}),
 				decor.Elapsed(decor.ET_STYLE_MMSS, decor.WC{W: 10}),
-				decor.Name(" ETA: ", decor.WC{W: 6}),
-				decor.AverageETA(decor.ET_STYLE_MMSS, decor.WC{W: 9, C: decor.DindentRight}),
+				decor.OnComplete(
+					decor.Name(" ETA: "),
+					color.GreenString(" Done"),
+				),
+				decor.OnComplete(
+					decor.AverageETA(decor.ET_STYLE_MMSS, decor.WC{W: 9, C: decor.DindentRight}),
+					"",
+				),
 			),
+			mpb.BarFillerOnComplete(""),
 			mpb.AppendDecorators(
-				decor.NewPercentage("%.2f", decor.WC{W: 7}),
+				decor.OnComplete(
+					decor.NewPercentage("%.2f", decor.WC{W: 7}),
+					"",
+				),
 			),
 		)
 		hookTotalProgress(bar, totalbar)
