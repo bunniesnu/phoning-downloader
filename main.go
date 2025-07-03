@@ -17,7 +17,7 @@ import (
 )
 
 func main() {
-	outputDir := flag.String("o", "Downloads_tmp", "Directory to save downloaded videos")
+	outputDir := flag.String("o", "Downloads", "Directory to save downloaded videos")
 	concurrency := flag.Int("c", 10, "Concurrency")
 	help := flag.Bool("h", false, "Show help message")
 	flag.Parse()
