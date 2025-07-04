@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
+	"syscall"
 
 	"github.com/fatih/color"
 	"github.com/joho/godotenv"
@@ -323,6 +324,32 @@ func main() {
 			continue
 		}
 		totalSize += size
+	}
+	var statfs syscall.Statfs_t
+	if err := syscall.Statfs(*outputDir, &statfs); err != nil {
+		log.Fatalf("Failed to check disk space: %v", err)
+	}
+	available := int64(statfs.Bavail) * int64(statfs.Bsize)
+	showIgnoreWarning := false
+	if available < totalSize {
+		showIgnoreWarning = true
+	}
+	for showIgnoreWarning {
+		fmt.Printf("Warning: Not enough disk space in %s: need %d bytes, available %d bytes\n", *outputDir, totalSize, available)
+		print("Do you want to ignore this warning and proceed? (y/n): ")
+		var response string
+		fmt.Scanln(&response)
+		switch response {
+			case "y", "Y":
+				fmt.Println("Proceeding with the download...")
+				showIgnoreWarning = false
+			case "n", "N":
+				fmt.Println("Exiting...")
+				os.Exit(0)
+			default:
+				fmt.Println("Invalid input. Please enter 'y' or 'n'.")
+				continue
+		}
 	}
 	println("Downloading...")
 	p = mpb.New(mpb.WithWidth(64), mpb.PopCompletedMode())
