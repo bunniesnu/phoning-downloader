@@ -1,4 +1,4 @@
-module github.com/phoning-tools/phoning-downloader
+module github.com/bunniesnu/phoning-downloader
 
 go 1.24.4
 
