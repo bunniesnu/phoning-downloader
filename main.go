@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
-	"syscall"
 
 	"github.com/fatih/color"
 	"github.com/joho/godotenv"
@@ -325,11 +324,10 @@ func main() {
 		}
 		totalSize += size
 	}
-	var statfs syscall.Statfs_t
-	if err := syscall.Statfs(*outputDir, &statfs); err != nil {
-		log.Fatalf("Failed to check disk space: %v", err)
+	available, err := getDiskFreeSpace(*outputDir)
+	if err != nil {
+		log.Fatalf("%v", err)
 	}
-	available := int64(statfs.Bavail) * int64(statfs.Bsize)
 	showIgnoreWarning := false
 	if available < totalSize {
 		showIgnoreWarning = true

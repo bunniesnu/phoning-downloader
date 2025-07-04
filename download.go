@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/vbauerster/mpb/v8"
@@ -41,11 +40,10 @@ func safeCreateFile(destPath, baseDir string, size int64) (*os.File, error) {
         return nil, fmt.Errorf("destination %q is outside of %q", absDest, absBase)
     }
 
-    var statfs syscall.Statfs_t
-    if err := syscall.Statfs(absBase, &statfs); err != nil {
-        return nil, fmt.Errorf("statfs on %q: %w", absBase, err)
+    freeBytes, err := getDiskFreeSpace(absBase)
+    if err != nil {
+        return nil, fmt.Errorf("%w", err)
     }
-    freeBytes := int64(statfs.Bavail) * int64(statfs.Bsize)
     if freeBytes < size {
         return nil, fmt.Errorf("not enough disk space: need %d, have %d", size, freeBytes)
     }
