@@ -12,6 +12,11 @@ builds:
 archives:
   - formats: [tar.gz, zip]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+      - hash/**
+      - .env.example
 
 release:
   github:
