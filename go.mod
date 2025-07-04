@@ -9,6 +9,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/vbauerster/mpb/v8 v8.10.2
 	golang.org/x/sync v0.15.0
+	golang.org/x/sys v0.33.0
 )
 
 require (
@@ -26,5 +27,4 @@ require (
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	golang.org/x/net v0.39.0 // indirect
-	golang.org/x/sys v0.33.0 // indirect
 )
