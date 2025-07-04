@@ -22,6 +22,7 @@ const fetchConcurrency = 64
 const warningConcurrency = 15
 
 func main() {
+	callHashFilePath := filepath.Join("hash", "sum.json")
 	outputDir := flag.String("o", "Downloads", "Directory to save downloaded videos")
 	concurrency := flag.Int("c", 10, "Concurrent downloads")
 	chunk := flag.Int("d", 10, "Number of chunks to download in parallel")
@@ -221,13 +222,13 @@ func main() {
 	loadedSums := make(map[string]string)
 	if !*disableHash {
 		println("Verifying hash file...")
-		jsonFile, err := os.Open("sum.json")
+		jsonFile, err := os.Open(callHashFilePath)
 		if err != nil {
-			log.Fatalf("Error opening sum.json: %v", err)
+			log.Fatalf("Error opening %s: %v", callHashFilePath, err)
 		}
 		decoder := json.NewDecoder(jsonFile)
 		if err := decoder.Decode(&loadedSums); err != nil {
-			log.Fatalf("Error decoding sum.json: %v", err)
+			log.Fatalf("Error decoding %s: %v", callHashFilePath, err)
 		}
 		jsonFile.Close()
 		print("Hash file verification: ")
@@ -275,7 +276,7 @@ func main() {
 			filePath := filepath.Join(*outputDir, liveIdStr+".mp4")
 			compSum, ok := loadedSums[liveIdStr]
 			if !ok {
-				return false, fmt.Errorf("hash for live ID %d not found in sum.json", liveId)
+				return false, fmt.Errorf("hash for live ID %d not found in %s", liveId, callHashFilePath)
 			}
 			sum, err := checksum(filePath)
 			if err != nil {
@@ -380,7 +381,7 @@ func main() {
 		liveIdStr := strconv.Itoa(liveId)
 		compSum, ok := loadedSums[liveIdStr]
 		if !*disableHash && !ok {
-			return false, fmt.Errorf("hash for live ID %d not found in sum.json", liveId)
+			return false, fmt.Errorf("hash for live ID %d not found in %s", liveId, callHashFilePath)
 		}
 		pnxml, err := getPNXML(api_key, access_token, liveId)
 		if err != nil {
