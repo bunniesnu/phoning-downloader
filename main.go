@@ -50,7 +50,7 @@ func main() {
 	generatingAccount := false
 	if access_token == "" {
 		generatingAccount = true
-		println("Access Token not found. Generating...")
+		println("Access Token not found. Generating...\nThis may take a while, please wait...")
 		body, err := register()
 		if err != nil {
 			log.Fatal(err)
