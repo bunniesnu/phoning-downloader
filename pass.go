@@ -49,11 +49,3 @@ func generatePassword(length int) string {
 
 	return string(password)
 }
-
-func generateNickname() string {
-	nickname := make([]byte, 8)
-	for i := range nickname {
-		nickname[i] = getRandomChar(lower + upper + digits)
-	}
-	return string(nickname)
-}

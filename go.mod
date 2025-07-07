@@ -4,6 +4,7 @@ go 1.24.4
 
 require (
 	github.com/bunniesnu/go-gmailnator v1.0.0
+	github.com/bunniesnu/weverse-api v1.0.0
 	github.com/chromedp/chromedp v0.13.7
 	github.com/fatih/color v1.18.0
 	github.com/joho/godotenv v1.5.1
@@ -26,4 +27,5 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
+	golang.org/x/net v0.41.0 // indirect
 )

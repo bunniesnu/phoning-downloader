@@ -1,12 +1,12 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/bunniesnu/go-gmailnator"
+	"github.com/bunniesnu/weverse-api"
 )
 
 func register() (map[string]string, error) {
@@ -20,8 +20,16 @@ func register() (map[string]string, error) {
 	}
 	email := gmail.Email.Email
 	password := generatePassword(16)
-	nickname := generateNickname()
-	_, err = signUp(email, password, nickname)
+	w, err := weverse.New(email, password, "", 0)
+	if err != nil {
+		return nil, fmt.Errorf("error creating Weverse client: %v", err)
+	}
+	nickname, err := w.GetAccountNicknameSuggestion()
+	if err != nil {
+		return nil, fmt.Errorf("error getting nickname suggestion")
+	}
+	w.Nickname = nickname
+	err = w.CreateAccount()
 	if err != nil {
 		return nil, fmt.Errorf("error signing up: %v", err)
 	}
@@ -67,18 +75,12 @@ func register() (map[string]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error clicking link: %v", err)
 	}
-	val, err := check_verification(email)
+	val, err := w.GetAccountStatus()
 	if err != nil {
 		return nil, fmt.Errorf("error checking verification: %v", err)
 	}
-	var body map[string]any
-	err = json.Unmarshal(val, &body)
-	if err != nil {
-		return nil, fmt.Errorf("error decoding response: %v", err)
-	}
-	result, ok := body["emailVerified"].(bool)
-	if !ok || !result {
-		return nil, fmt.Errorf("verification failed: %v", result)
+	if !(val.EmailVerified) {
+		return nil, fmt.Errorf("email verification failed")
 	}
 	return map[string]string{
 		"email": email,

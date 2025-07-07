@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"maps"
-	"net/url"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -34,51 +33,6 @@ func getHeaders() map[string]string {
 	maps.Copy(headers, DefaultHeaders)
 	headers["X-SDK-SERVICE-SECRET"] = os.Getenv("SDK_KEY")
 	return headers
-}
-
-func signUp(email, password, nickname string) ([]byte, error) {
-    body := map[string]any{
-        "idToken": nil,
-        "email":    email,
-        "password": password,
-        "nickname": nickname,
-        "termsAgreements": []map[string]any{
-            {
-                "termsDocumentId": "ACC-1:ko:3",
-                "agreed":          true,
-            },
-            {
-                "termsDocumentId": "ACC-2:ko:4",
-                "agreed":          true,
-            },
-            {
-                "termsDocumentId": "phoning-1:ko:1",
-                "agreed":          true,
-            },
-            {
-                "termsDocumentId": "phoning-2:ko:1",
-                "agreed":          true,
-            },
-            {
-                "termsDocumentId": "phoning-3:ko:1",
-                "agreed":          true,
-            },
-            {
-                "termsDocumentId": "phoning-age14:ko:1",
-                "agreed":          true,
-            },
-        },
-    }
-	encodedBody, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	return CallAPI("POST", "https://sdk.weverse.io/api/v3/signup/by-credentials", encodedBody, getHeaders())
-}
-
-func check_verification(email string) ([]byte, error) {
-	queryUrl := "https://sdk.weverse.io/api/v1/signup/email/status?email=" + url.QueryEscape(email)
-	return CallAPI("GET", queryUrl, nil, getHeaders())
 }
 
 func getToken(email, password string) ([]byte, error) {
